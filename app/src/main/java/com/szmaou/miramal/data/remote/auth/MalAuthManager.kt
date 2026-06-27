@@ -1,7 +1,7 @@
 package com.szmaou.miramal.data.remote.auth
 
 import android.net.Uri
-import java.security.MessageDigest
+import android.util.Log
 import java.security.SecureRandom
 import java.util.Base64
 import javax.inject.Inject
@@ -17,8 +17,6 @@ class MalAuthManager @Inject constructor(
 ) {
     private companion object {
         private const val AUTH_URL = "https://myanimelist.net/v1/oauth2/authorize"
-        private const val SCOPE = "write:users:read+write:users:write"
-        private const val CODE_CHALLENGE_METHOD = "S256"
     }
 
     private var currentCodeVerifier: String? = null
@@ -29,16 +27,13 @@ class MalAuthManager @Inject constructor(
     fun buildAuthUrl(): String {
         val verifier = generateCodeVerifier()
         currentCodeVerifier = verifier
-        val challenge = generateCodeChallenge(verifier)
+        Log.e("MiraMAL", "buildAuthUrl: verifier(${verifier.length})=${verifier.take(12)}...")
 
         return Uri.parse(AUTH_URL).buildUpon()
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", clientId)
-            .appendQueryParameter("redirect_uri", redirectUri)
-            .appendQueryParameter("scope", SCOPE)
             .appendQueryParameter("state", generateState())
-            .appendQueryParameter("code_challenge", challenge)
-            .appendQueryParameter("code_challenge_method", CODE_CHALLENGE_METHOD)
+            .appendQueryParameter("code_challenge", verifier)
             .build()
             .toString()
     }
@@ -46,12 +41,12 @@ class MalAuthManager @Inject constructor(
     suspend fun exchangeCode(code: String) {
         val verifier = currentCodeVerifier ?: throw Exception("No PKCE verifier found")
         currentCodeVerifier = null
+        Log.e("MiraMAL", "exchangeCode: code=${code.take(8)}..., verifier=${verifier.take(8)}...")
 
         val tokenResponse = authApi.exchangeCode(
             clientId = clientId,
             code = code,
-            codeVerifier = verifier,
-            redirectUri = redirectUri
+            codeVerifier = verifier
         )
 
         tokenStore.saveToken(
@@ -88,11 +83,6 @@ class MalAuthManager @Inject constructor(
         val bytes = ByteArray(64)
         SecureRandom().nextBytes(bytes)
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-    }
-
-    private fun generateCodeChallenge(verifier: String): String {
-        val digest = MessageDigest.getInstance("SHA-256").digest(verifier.toByteArray())
-        return Base64.getUrlEncoder().withoutPadding().encodeToString(digest)
     }
 
     private fun generateState(): String {

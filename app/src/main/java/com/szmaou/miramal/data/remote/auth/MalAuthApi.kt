@@ -2,6 +2,8 @@ package com.szmaou.miramal.data.remote.auth
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -29,14 +31,12 @@ class MalAuthApi @Inject constructor() {
     suspend fun exchangeCode(
         clientId: String,
         code: String,
-        codeVerifier: String,
-        redirectUri: String
+        codeVerifier: String
     ): TokenResponse {
         val body = FormBody.Builder()
             .add("client_id", clientId)
             .add("code", code)
             .add("code_verifier", codeVerifier)
-            .add("redirect_uri", redirectUri)
             .add("grant_type", "authorization_code")
             .build()
 
@@ -59,14 +59,17 @@ class MalAuthApi @Inject constructor() {
             .post(body)
             .build()
 
-        val response = client.newCall(request).execute()
+        val response = withContext(Dispatchers.IO) {
+            client.newCall(request).execute()
+        }
         val json = response.body?.string() ?: throw Exception("Empty response")
 
         if (!response.isSuccessful) {
-            throw Exception("Token request failed: $json")
+            throw Exception("Token request failed (${response.code}): $json")
         }
 
-        return kotlinx.serialization.json.Json
-            .decodeFromString<TokenResponse>(json)
+        return kotlinx.serialization.json.Json {
+            ignoreUnknownKeys = true
+        }.decodeFromString<TokenResponse>(json)
     }
 }

@@ -7,16 +7,18 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-val properties = java.util.Properties().apply {
-    val file = rootProject.file("local.properties")
-    if (file.exists()) load(file.inputStream())
-}
+import java.util.Properties
 
-val malClientId = properties.getProperty("MAL_CLIENT_ID") ?: "YOUR_CLIENT_ID"
+val malClientId = rootProject.file("local.properties")
+    .takeIf { it.exists() }
+    ?.inputStream()
+    ?.use { stream -> Properties().apply { load(stream) }.getProperty("MAL_CLIENT_ID") }
+    ?: "YOUR_CLIENT_ID"
 
 android {
     namespace = "com.szmaou.miramal"
     compileSdk = 34
+    buildToolsVersion = "37.0.0"
 
     defaultConfig {
         applicationId = "com.szmaou.miramal"

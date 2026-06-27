@@ -1,13 +1,14 @@
 package com.szmaou.miramal.data.remote.auth
 
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 
 object AuthEventBus {
-    private val _events = MutableSharedFlow<String>(extraBufferCapacity = 1)
-    val events = _events.asSharedFlow()
+    private val _events = Channel<String>(Channel.BUFFERED)
+    val events: Flow<String> = _events.receiveAsFlow()
 
     suspend fun send(code: String) {
-        _events.emit(code)
+        _events.send(code)
     }
 }
